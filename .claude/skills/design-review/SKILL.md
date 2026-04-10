@@ -1,56 +1,3 @@
-# Design Review Skill 实现计划
-
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
-**Goal:** 创建 design-review skill，用于系统化评审模块设计文档的完整性和一致性。
-
-**Architecture:** 单一 SKILL.md 文件，包含 6 个检查维度、25 个检查项、执行流程和输出格式。作为流程模板指导 Claude 或人工执行评审。
-
-**Tech Stack:** Markdown skill 文件，YAML frontmatter
-
----
-
-## 文件结构
-
-| 文件 | 职责 |
-|------|------|
-| `.claude/skills/design-review/SKILL.md` | 主 skill 文件，包含完整评审流程模板 |
-
----
-
-### Task 1: 创建 skill 目录结构
-
-**Files:**
-- Create: `.claude/skills/design-review/` 目录
-
-- [ ] **Step 1: 创建目录**
-
-```bash
-mkdir -p .claude/skills/design-review
-```
-
-预期：目录创建成功
-
-- [ ] **Step 2: 验证目录存在**
-
-```bash
-ls -la .claude/skills/design-review
-```
-
-预期：目录存在且为空
-
----
-
-### Task 2: 编写 SKILL.md frontmatter 和概述
-
-**Files:**
-- Create: `.claude/skills/design-review/SKILL.md`
-
-- [ ] **Step 1: 编写 frontmatter 和概述部分**
-
-创建文件 `.claude/skills/design-review/SKILL.md`，写入以下内容：
-
-```markdown
 ---
 name: design-review
 description: Use when reviewing module design documents for completeness and consistency. Triggers: "review this design doc", "check if design is complete", "/design-review", analyzing module-level design documents (scheduler, executor, etc.) for structural integrity, definition completeness, terminology consistency, logical consistency, interface consistency, and design reasonability.
@@ -97,30 +44,6 @@ Use for ANY module design document review:
 **规则级:** Clear matching rules, pass/fail verdict, no subjective judgment
 **原则级:** Based on design principles, pass/warning verdict, requires judgment
 
-```
-
-预期：文件创建成功，包含 frontmatter 和概述部分
-
-- [ ] **Step 2: 验证文件内容**
-
-```bash
-head -50 .claude/skills/design-review/SKILL.md
-```
-
-预期：输出包含 frontmatter 和概述内容
-
----
-
-### Task 3: 编写检查项定义（结构完整性 + 定义完整性）
-
-**Files:**
-- Modify: `.claude/skills/design-review/SKILL.md`（追加内容）
-
-- [ ] **Step 1: 追加结构完整性检查项**
-
-追加以下内容到 `.claude/skills/design-review/SKILL.md`：
-
-```markdown
 ---
 
 ## Dimension 1: 结构完整性（规则级）
@@ -189,31 +112,6 @@ head -50 .claude/skills/design-review/SKILL.md
 
 **表格格式:** 参数名 | 类型 | 默认值 | 说明
 
-```
-
-预期：文件追加成功
-
-- [ ] **Step 2: 验证追加内容**
-
-```bash
-grep -A 3 "Dimension 1:" .claude/skills/design-review/SKILL.md
-grep -A 3 "Dimension 2:" .claude/skills/design-review/SKILL.md
-```
-
-预期：两个维度都存在
-
----
-
-### Task 4: 编写检查项定义（术语一致性 + 逻辑一致性）
-
-**Files:**
-- Modify: `.claude/skills/design-review/SKILL.md`（追加内容）
-
-- [ ] **Step 1: 追加术语一致性和逻辑一致性检查项**
-
-追加以下内容到 `.claude/skills/design-review/SKILL.md`：
-
-```markdown
 ---
 
 ## Dimension 3: 术语一致性（规则级）
@@ -275,31 +173,6 @@ grep -A 3 "Dimension 2:" .claude/skills/design-review/SKILL.md
 
 **提取规则:** 从流程描述提取方法调用
 
-```
-
-预期：文件追加成功
-
-- [ ] **Step 2: 验证追加内容**
-
-```bash
-grep -A 3 "Dimension 3:" .claude/skills/design-review/SKILL.md
-grep -A 3 "Dimension 4:" .claude/skills/design-review/SKILL.md
-```
-
-预期：两个维度都存在
-
----
-
-### Task 5: 编写检查项定义（接口一致性）
-
-**Files:**
-- Modify: `.claude/skills/design-review/SKILL.md`（追加内容）
-
-- [ ] **Step 1: 追加接口一致性检查项**
-
-追加以下内容到 `.claude/skills/design-review/SKILL.md`：
-
-```markdown
 ---
 
 ## Dimension 5: 接口一致性（规则级）
@@ -340,30 +213,6 @@ grep -A 3 "Dimension 4:" .claude/skills/design-review/SKILL.md
 
 **判定标准:** 枚举值或名称不同 → ❌ 失败
 
-```
-
-预期：文件追加成功
-
-- [ ] **Step 2: 验证追加内容**
-
-```bash
-grep -A 10 "Dimension 5:" .claude/skills/design-review/SKILL.md
-```
-
-预期：维度 5 存在且包含穿透验证说明
-
----
-
-### Task 6: 编写检查项定义（设计合理性）
-
-**Files:**
-- Modify: `.claude/skills/design-review/SKILL.md`（追加内容）
-
-- [ ] **Step 1: 追加设计合理性检查项**
-
-追加以下内容到 `.claude/skills/design-review/SKILL.md`：
-
-```markdown
 ---
 
 ## Dimension 6: 设计合理性（原则级）
@@ -418,30 +267,6 @@ grep -A 10 "Dimension 5:" .claude/skills/design-review/SKILL.md
 
 **评估依据:** 是否有日志级别、监控指标、告警规则定义
 
-```
-
-预期：文件追加成功
-
-- [ ] **Step 2: 验证追加内容**
-
-```bash
-grep -A 10 "Dimension 6:" .claude/skills/design-review/SKILL.md
-```
-
-预期：维度 6 存在且包含 6 个原则级检查项
-
----
-
-### Task 7: 编写执行流程和输出格式
-
-**Files:**
-- Modify: `.claude/skills/design-review/SKILL.md`（追加内容）
-
-- [ ] **Step 1: 追加执行流程**
-
-追加以下内容到 `.claude/skills/design-review/SKILL.md`：
-
-```markdown
 ---
 
 ## Execution Process
@@ -530,30 +355,6 @@ After completing all checks, output a report in this format:
 - [列出通过的检查项，格式: S-002 模块简介完整]
 ```
 
-```
-
-预期：文件追加成功
-
-- [ ] **Step 2: 验证执行流程部分**
-
-```bash
-grep -A 20 "Execution Process" .claude/skills/design-review/SKILL.md
-```
-
-预期：包含 8 个步骤和输出格式
-
----
-
-### Task 8: 编写 Quick Reference 和 Common Mistakes
-
-**Files:**
-- Modify: `.claude/skills/design-review/SKILL.md`（追加内容）
-
-- [ ] **Step 1: 追加 Quick Reference 和结尾部分**
-
-追加以下内容到 `.claude/skills/design-review/SKILL.md`：
-
-```markdown
 ---
 
 ## Quick Reference
@@ -630,97 +431,3 @@ grep -A 20 "Execution Process" .claude/skills/design-review/SKILL.md
 | AgentCube SDK | `/home/xmq/projects/go/AgentCube/go-sdk` | ExecutorClient 接口定义 |
 | eval-data | `/home/xmq/projects/go/eval-data` | 数据管理服务接口 |
 | 设计文档集 | `docs/designs/` | 跨文档数据结构引用 |
-```
-
-预期：文件追加成功
-
-- [ ] **Step 2: 验证完整文件**
-
-```bash
-wc -l .claude/skills/design-review/SKILL.md
-```
-
-预期：文件约 200+ 行
-
----
-
-### Task 9: 验证 skill 可用性
-
-**Files:**
-- Verify: `.claude/skills/design-review/SKILL.md`
-
-- [ ] **Step 1: 检查 frontmatter 格式**
-
-```bash
-head -10 .claude/skills/design-review/SKILL.md
-```
-
-预期：包含正确的 YAML frontmatter（name, description）
-
-- [ ] **Step 2: 检查所有维度存在**
-
-```bash
-grep "Dimension" .claude/skills/design-review/SKILL.md
-```
-
-预期：输出包含 Dimension 1-6
-
-- [ ] **Step 3: 检查检查项数量**
-
-```bash
-grep -c "### [A-Z]-" .claude/skills/design-review/SKILL.md
-```
-
-预期：输出 25（19规则级 + 6原则级）
-
----
-
-### Task 10: 提交 skill 文件
-
-**Files:**
-- Commit: skill 创建记录
-
-- [ ] **Step 1: 验证文件完整性**
-
-阅读完整文件确认无占位符或缺失内容：
-
-```bash
-cat .claude/skills/design-review/SKILL.md | grep -E "(TBD|TODO|待定|placeholder)"
-```
-
-预期：无匹配（无占位符）
-
-- [ ] **Step 2: 在项目目录记录 skill 创建（可选）**
-
-如果需要记录到项目的 git：
-
-```bash
-echo "Created .claude/skills/design-review/SKILL.md for design document review" >> ~/.claude/skills/design-review/CHANGELOG.md
-```
-
-预期：记录创建日志
-
----
-
-## Self-Review Checklist
-
-计划编写完成后，对照 spec 检查：
-
-| Spec 章节 | 对应任务 | 状态 |
-|-----------|----------|------|
-| 概述 | Task 2 | ✓ |
-| 检查维度 (§2) | Task 2 | ✓ |
-| 结构完整性 (§3.1) | Task 3 | ✓ |
-| 定义完整性 (§3.2) | Task 3 | ✓ |
-| 术语一致性 (§3.3) | Task 4 | ✓ |
-| 逻辑一致性 (§3.4) | Task 4 | ✓ |
-| 接口一致性 (§3.5) | Task 5 | ✓ |
-| 设计合理性 (§3.6) | Task 6 | ✓ |
-| 执行流程 (§4) | Task 7 | ✓ |
-| 输出格式 (§5.3) | Task 7 | ✓ |
-| Quick Reference (附录§6.1) | Task 8 | ✓ |
-| 依赖项目路径 (附录§6.2) | Task 8 | ✓ |
-
-**占位符检查:** 无 TBD/TODO/placeholder
-
-**类型一致性检查:** 所有检查项 ID 格式统一（S/D/T/L/I/R-XXX）
