@@ -115,7 +115,7 @@
 
 接口方式: Go SDK (`github.com/volcano-sh/agentcube/go-sdk`)
 
-详细文档: [docs/dependencies/agentcube-sdk.md](docs/dependencies/agentcube-sdk.md)
+详细文档: [AgentCube-SDK使用说明](docs/dependencies/AgentCube-SDK使用说明.md)
 
 #### 数据管理服务
 
@@ -129,7 +129,7 @@
 
 接口方式: HTTP API
 
-详细文档: [docs/dependencies/eval-data-api.md](docs/dependencies/eval-data-api.md)
+详细文档: [数据管理服务接口文档](docs/dependencies/数据管理服务接口文档.md)
 
 ## 参考项目
 
@@ -150,8 +150,7 @@
 - 应用评测的执行服务通过SDK管理远程沙箱
 
 详细文档:
-- [docs/references/eval-server-architecture.md](docs/references/eval-server-architecture.md)
-- [docs/references/eval-server-api.md](docs/references/eval-server-api.md)
+- [模型评测服务设计文档](docs/references/模型评测服务设计文档.md)
 
 ## 术语定义
 
@@ -168,7 +167,7 @@
 
 ## 开发阶段规划
 
-### 当前阶段: 文档完善
+### 完成阶段: 文档完善
 
 目标: 建立完整的参考文档和需求文档
 
@@ -177,7 +176,7 @@
 - docs/references/ (参考项目文档)
 - docs/dependencies/ (依赖项目文档)
 
-### 后续阶段: 方案设计
+### 当前阶段: 方案设计
 
 目标: 设计应用评测服务的详细架构
 
@@ -190,6 +189,7 @@
 ### 后续阶段: 代码开发
 
 目标: 实现调度服务、执行服务、评测工具
+参考：- [项目开发规划文档](docs/项目开发规划文档.md)
 
 产出:
 - 调度服务代码
@@ -199,12 +199,20 @@
 
 ## 文档索引
 
-### 参考文档
-- [模型评测服务设计文档](docs/references/模型评测服务设计文档.md)
-
 ### 设计文档
-- [应用评测任务设计文档](docs/designs/应用评测任务设计文档.md)
+- [架构设计文档](docs/designs/架构设计文档.md)
+- [数据模型设计文档](docs/designs/数据模型设计文档.md)
+- [API接口设计文档](docs/designs/API接口设计文档.md)
+- [模块设计文档](docs/designs/模块设计文档.md)
+- [项目开发规划文档](docs/项目开发规划文档.md)
+
+### 规范文档
+- [代码开发规范](docs/standards/代码开发规范.md)
 
 ### 依赖文档
-- [AgentCube SDK使用说明](docs/dependencies/AgentCube-SDK使用说明.md)
+- [AgentCube-SDK使用说明](docs/dependencies/AgentCube-SDK使用说明.md)
 - [数据管理服务接口文档](docs/dependencies/数据管理服务接口文档.md)
+- [评测工具交互说明](docs/dependencies/评测工具交互说明.md)
+
+### 参考文档
+- [模型评测服务设计文档](docs/references/模型评测服务设计文档.md)
