@@ -115,7 +115,7 @@
 
 接口方式: Go SDK (`github.com/volcano-sh/agentcube/go-sdk`)
 
-详细文档: [AgentCube-SDK使用说明](docs/dependencies/AgentCube-SDK使用说明.md)
+详细文档: [AgentCube使用说明](docs/dependencies/AgentCube使用说明.md)
 
 #### 数据管理服务
 

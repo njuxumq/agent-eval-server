@@ -275,7 +275,7 @@ make build
 
 | 文档 | 说明 |
 |------|------|
-| [AgentCube-SDK使用说明](docs/dependencies/AgentCube-SDK使用说明.md) | AgentCube 沙箱服务 SDK |
+| [AgentCube使用说明](docs/dependencies/AgentCube使用说明.md) | AgentCube 沙箱服务 SDK |
 | [数据管理服务接口文档](docs/dependencies/数据管理服务接口文档.md) | eval-data 服务接口 |
 
 ### 参考文档
