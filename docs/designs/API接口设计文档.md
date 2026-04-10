@@ -1,15 +1,13 @@
-# API接口详细设计文档
+# API接口设计文档
 
 ## 一、概述
 
 ### 1.1 文档目的
 
-本文档详细定义应用评测服务（agent-eval-server）的所有API接口，包括：
+本文档定义应用评测服务（agent-eval-server）的所有API接口，包括：
 - 接口定义与请求/响应格式
 - 参数校验规则
 - 错误码定义
-- 数据结构定义
-- 调用示例
 
 ### 1.2 设计原则
 
@@ -95,43 +93,9 @@
 {
     "app_id": "agent-eval-app",
     "description": "Skill评测任务",
+    "type": "agent_eval",
     "config": {
-        "version": "1.0.0",
-        "workflow": ["synthesis", "inference", "eval", "report"],
-        "models": [
-            {
-                "id": "ID_JUDGE_001",
-                "type": "api-openai",
-                "api_key": "sk-xxx",
-                "api_url": "https://api.example.com",
-                "model": "deepseek-r1",
-                "concurrency": 40
-            }
-        ],
-        "synthesis": {
-            "type": "agent",
-            "count": 10,
-            "model": "ID_JUDGE_001"
-        },
-        "inference": {
-            "type": "claude-code",
-            "model": "ID_JUDGE_001",
-            "merge_eval": false
-        },
-        "eval": {
-            "model": "ID_JUDGE_001"
-        },
-        "report": {
-            "type": "agent",
-            "model": "ID_JUDGE_001"
-        }
-    },
-    "resources": {
-        "skills": "base64编码的skills目录tar.gz内容",
-        "files": {
-            "a.pdf": "base64编码的PDF文件内容",
-            "b.xlsx": "base64编码的Excel文件内容"
-        }
+        // AgentEvalConfig 或 ModelEvalConfig，根据 type 字段解析
     }
 }
 ```
@@ -141,9 +105,16 @@
 | 字段 | 类型 | 必填 | 说明 | 校验规则 |
 |------|------|------|------|----------|
 | `app_id` | string | 是 | 应用标识 | 非空，最大64字符，匹配 `[a-zA-Z0-9_-]+` |
-| `description` | string | 否 | 任务描述 | 最大500字符 |
-| `config` | object | 是 | 任务配置 | 见配置结构定义 |
-| `resources` | object | 是 | 评测资源 | 见资源结构定义 |
+| `description` | string | 否 | 任务描述 | 最大200字符 |
+| `type` | string | 是 | 任务类型 | 枚举：`model_eval` / `agent_eval` |
+| `config` | object | 是 | 任务配置 | 动态结构，按 `type` 字段解析为对应配置类型 |
+
+**配置类型映射**：
+
+| type | 配置类型 | 说明 |
+|------|----------|------|
+| `model_eval` | ModelEvalConfig | 模型评测配置，详见 [5.1.1 ModelEvalConfig](#511-model_eval_config模型评测配置) |
+| `agent_eval` | AgentEvalConfig | 应用评测配置，详见 [5.1.2 AgentEvalConfig](#512-agent_eval_config应用评测配置) |
 
 #### 响应示例
 
@@ -154,7 +125,7 @@
     "code": 0,
     "message": "ok",
     "data": {
-        "task_id": "agent-eval-abc123",
+        "task_id": "task-abc123",
         "status": "waiting",
         "created_at": 1761983527
     }
@@ -166,19 +137,10 @@
 ```json
 {
     "code": 10204,
-    "message": "request param invalid: workflow must contain at least one stage",
+    "message": "request param invalid: type must be one of [model_eval, agent_eval]",
     "data": null
 }
 ```
-
-#### 业务逻辑
-
-1. 参数校验：检查必填字段、配置格式、资源编码
-2. 生成TaskId：UUID格式，前缀 `agent-eval-`
-3. 存储资源：skills和files存储到数据库或对象存储
-4. 构建Task记录：初始状态为 `Waiting`
-5. 触发任务拆分：后台异步执行任务拆分逻辑
-6. 返回TaskId：不等待执行完成，立即返回
 
 ---
 
@@ -209,32 +171,28 @@
 **请求示例**：
 
 ```
-GET /v1/tasks/agent-eval-abc123?app_id=agent-eval-app
+GET /v1/tasks/task-abc123?app_id=agent-eval-app
 ```
 
 #### 响应示例
 
-**成功响应（运行中）**：
+**成功响应（应用评测任务-运行中）**：
 
 ```json
 {
     "code": 0,
     "message": "ok",
     "data": {
-        "task_id": "agent-eval-abc123",
+        "task_id": "task-abc123",
         "app_id": "agent-eval-app",
+        "type": "agent_eval",
         "description": "Skill评测任务",
         "status": "running",
         "progress": 50,
         "message": "执行inference阶段",
         "config": {
             "workflow": ["synthesis", "inference", "eval", "report"],
-            "models": [
-                {
-                    "id": "ID_JUDGE_001",
-                    "model": "deepseek-r1"
-                }
-            ]
+            "models": [{"id": "ID_JUDGE_001", "model": "deepseek-r1"}]
         },
         "result": null,
         "created_at": 1761983527,
@@ -244,48 +202,36 @@ GET /v1/tasks/agent-eval-abc123?app_id=agent-eval-app
 }
 ```
 
-**成功响应（已完成）**：
+**成功响应（应用评测任务-已完成）**：
 
 ```json
 {
     "code": 0,
     "message": "ok",
     "data": {
-        "task_id": "agent-eval-abc123",
+        "task_id": "task-abc123",
         "app_id": "agent-eval-app",
+        "type": "agent_eval",
         "description": "Skill评测任务",
         "status": "finished",
         "progress": 100,
         "message": "评测完成",
         "config": {
             "workflow": ["synthesis", "inference", "eval", "report"],
-            "models": [
-                {
-                    "id": "ID_JUDGE_001",
-                    "model": "deepseek-r1"
-                }
-            ]
+            "models": [{"id": "ID_JUDGE_001", "model": "deepseek-r1"}]
         },
         "result": {
-            "report_url": "https://storage.example.com/reports/agent-eval-abc123/report.html",
+            "success": 1,
+            "message": "",
+            "progress": 100,
+            "report_url": "https://storage.example.com/reports/task-abc123/report.html",
             "usages": [
                 {
                     "model_id": "ID_JUDGE_001",
                     "input_tokens": 50000,
                     "output_tokens": 10000
                 }
-            ],
-            "conclusion": {
-                "score": 85.5,
-                "summary": "整体表现良好",
-                "details": [
-                    {
-                        "dimension": "accuracy",
-                        "score": 90.0,
-                        "reason": "回答准确率高"
-                    }
-                ]
-            }
+            ]
         },
         "created_at": 1761983527,
         "updated_at": 1761984000,
@@ -294,33 +240,44 @@ GET /v1/tasks/agent-eval-abc123?app_id=agent-eval-app
 }
 ```
 
-**错误响应（任务不存在）**：
+**成功响应（模型评测任务-已完成）**：
 
 ```json
 {
-    "code": 10306,
-    "message": "task not found: agent-eval-abc123",
-    "data": null
+    "code": 0,
+    "message": "ok",
+    "data": {
+        "task_id": "task-def456",
+        "app_id": "maas",
+        "type": "model_eval",
+        "description": "模型评测任务",
+        "status": "finished",
+        "progress": 100,
+        "message": "评测完成",
+        "config": {
+            "dataset": "http://storage.example.com/datasets/dataset.xlsx",
+            "agents": [{"id": "agent-001", "name": "TestAgent"}],
+            "models": [{"id": "judge-001", "model": "deepseek-r1"}]
+        },
+        "result": {
+            "success": 1,
+            "message": "",
+            "progress": 100,
+            "report_url": "https://storage.example.com/reports/task-def456/report.xlsx",
+            "usages": [
+                {
+                    "model_id": "judge-001",
+                    "input_tokens": 30000,
+                    "output_tokens": 5000
+                }
+            ]
+        },
+        "created_at": 1761983000,
+        "updated_at": 1761983500,
+        "expired_at": 1762583000
+    }
 }
 ```
-
-**错误响应（权限校验失败）**：
-
-```json
-{
-    "code": 10201,
-    "message": "request authorized failed: app_id mismatch",
-    "data": null
-}
-```
-
-#### 业务逻辑
-
-1. 参数校验：检查task_id格式、app_id非空
-2. 查询任务：从MongoDB查询Task记录
-3. 权限校验：检查请求app_id与任务app_id是否一致
-4. 计算进度：根据已完成子任务比例计算progress
-5. 构建响应：包含任务详情、状态、结果
 
 ---
 
@@ -384,16 +341,6 @@ GET /v1/tasks/agent-eval-abc123?app_id=agent-eval-app
 }
 ```
 
-#### 业务逻辑
-
-1. 参数校验：检查task_id格式、action为cancel
-2. 查询任务：从MongoDB查询Task记录
-3. 权限校验：检查请求app_id与任务app_id是否一致
-4. 状态检查：任务状态必须为 `Waiting`、`Running` 或 `Exception`
-5. 更新状态：Task状态改为 `Canceled`
-6. 联动更新：更新所有活跃SubTask为 `Canceled`
-7. 通知执行服务：调用执行服务取消接口
-
 ---
 
 ### 3.4 任务列表接口
@@ -413,6 +360,7 @@ GET /v1/tasks/agent-eval-abc123?app_id=agent-eval-app
 | 参数 | 类型 | 必填 | 说明 | 校验规则 |
 |------|------|------|------|----------|
 | `app_id` | string | 是 | 应用ID | 非空 |
+| `type` | string | 否 | 任务类型筛选 | 枚举：`model_eval`/`agent_eval` |
 | `status` | string | 否 | 任务状态筛选 | 枚举：waiting/running/finished/failed/canceled |
 | `offset` | int | 否 | 偏移量 | 默认0，最小0 |
 | `limit` | int | 否 | 返回数量 | 默认20，最大100 |
@@ -420,7 +368,7 @@ GET /v1/tasks/agent-eval-abc123?app_id=agent-eval-app
 **请求示例**：
 
 ```
-GET /v1/tasks?app_id=agent-eval-app&status=running&offset=0&limit=20
+GET /v1/tasks?app_id=agent-eval-app&type=agent_eval&status=running&offset=0&limit=20
 ```
 
 #### 响应示例
@@ -437,8 +385,9 @@ GET /v1/tasks?app_id=agent-eval-app&status=running&offset=0&limit=20
         "limit": 20,
         "items": [
             {
-                "task_id": "agent-eval-abc123",
+                "task_id": "task-abc123",
                 "app_id": "agent-eval-app",
+                "type": "agent_eval",
                 "description": "Skill评测任务",
                 "status": "running",
                 "progress": 50,
@@ -447,9 +396,10 @@ GET /v1/tasks?app_id=agent-eval-app&status=running&offset=0&limit=20
                 "updated_at": 1761983627
             },
             {
-                "task_id": "agent-eval-def456",
+                "task_id": "task-def456",
                 "app_id": "agent-eval-app",
-                "description": "另一个评测任务",
+                "type": "model_eval",
+                "description": "模型评测任务",
                 "status": "finished",
                 "progress": 100,
                 "message": "评测完成",
@@ -460,13 +410,6 @@ GET /v1/tasks?app_id=agent-eval-app&status=running&offset=0&limit=20
     }
 }
 ```
-
-#### 业务逻辑
-
-1. 参数校验：检查app_id非空、status枚举值、分页参数范围
-2. 构建查询：根据app_id和status筛选条件
-3. 执行查询：按created_at倒序，应用分页参数
-4. 构建响应：包含总数、分页信息、任务列表
 
 ---
 
@@ -490,31 +433,24 @@ GET /v1/tasks?app_id=agent-eval-app&status=running&offset=0&limit=20
 ```json
 {
     "sub_task_id": "subtask-001",
-    "task_id": "agent-eval-abc123",
-    "stage": "inference",
-    "case_id": "case-001",
-    "merge_mode": false,
-    "config": {
-        "model_config": {
-            "id": "ID_JUDGE_001",
-            "type": "api-openai",
-            "api_key": "sk-xxx",
-            "api_url": "https://api.example.com",
-            "model": "deepseek-r1",
-            "concurrency": 40
+    "task_id": "task-abc123",
+    "type": "inference",
+    "input": {
+        "command": "astron-eval",
+        "args": ["--config", "./task.yaml", "--stage", "inference"],
+        "envs": {
+            "API_KEY": "sk-xxx",
+            "API_URL": "https://api.example.com"
         },
-        "stage_config": {
-            "type": "claude-code",
-            "model": "ID_JUDGE_001",
-            "merge_eval": false
-        },
-        "evalset_ref": {
-            "evalset_id": "evalset-001",
-            "app_id": "agent-eval-app"
-        }
-    },
-    "resources_ref": {
-        "task_id": "agent-eval-abc123"
+        "input_files": [
+            {"name": "task.yaml", "content": "..."},
+            {"name": "setting.yaml", "content": "..."}
+        ],
+        "output_specs": [
+            {"name": "transcript.jsonl"},
+            {"name": "evalset.jsonl"}
+        ],
+        "timeout_sec": 3600
     }
 }
 ```
@@ -525,11 +461,8 @@ GET /v1/tasks?app_id=agent-eval-app&status=running&offset=0&limit=20
 |------|------|------|------|
 | `sub_task_id` | string | 是 | 子任务唯一标识 |
 | `task_id` | string | 是 | 所属任务ID |
-| `stage` | string | 是 | 阶段类型：synthesis/inference/eval/report |
-| `case_id` | string | 否 | case标识（inference/eval阶段必填） |
-| `merge_mode` | bool | 否 | 是否合并模式（默认false） |
-| `config` | object | 是 | 子任务执行配置 |
-| `resources_ref` | object | 是 | 资源引用（执行服务按task_id获取资源） |
+| `type` | string | 是 | 子任务类型 |
+| `input` | object | 是 | 执行参数（命令、环境变量、输入文件等） |
 
 #### 响应示例
 
@@ -556,13 +489,6 @@ GET /v1/tasks?app_id=agent-eval-app&status=running&offset=0&limit=20
 }
 ```
 
-#### 业务逻辑
-
-1. 参数校验：检查必填字段、stage枚举值
-2. 存储子任务：创建SubTask记录，状态为 `Allocated`
-3. 加入执行队列：将子任务加入本地执行队列
-4. 返回确认：立即返回，不等待执行完成
-
 ---
 
 ### 4.2 子任务状态上报接口
@@ -582,21 +508,25 @@ GET /v1/tasks?app_id=agent-eval-app&status=running&offset=0&limit=20
 
 ```json
 {
-    "task_id": "agent-eval-abc123",
+    "task_id": "task-abc123",
     "sub_task_id": "subtask-001",
-    "status": "finished",
+    "status": 3,
     "result": {
         "success": 1,
         "message": "",
-        "output_files": {
-            "transcript.jsonl": "/root/workspace/transcript.jsonl",
-            "evalset.jsonl": "/root/workspace/evalset.jsonl"
-        },
-        "usage": {
-            "model_id": "ID_JUDGE_001",
-            "input_tokens": 1000,
-            "output_tokens": 500
-        }
+        "progress": 100,
+        "report_url": "",
+        "usages": [
+            {
+                "model_id": "ID_JUDGE_001",
+                "input_tokens": 1000,
+                "output_tokens": 500
+            }
+        ],
+        "output_files": [
+            "http://storage.example.com/outputs/task-abc123/transcript.jsonl",
+            "http://storage.example.com/outputs/task-abc123/evalset.jsonl"
+        ]
     }
 }
 ```
@@ -607,7 +537,7 @@ GET /v1/tasks?app_id=agent-eval-app&status=running&offset=0&limit=20
 |------|------|------|------|
 | `task_id` | string | 是 | 所属任务ID |
 | `sub_task_id` | string | 是 | 子任务唯一标识 |
-| `status` | string | 是 | 子任务状态：running/finished/failed/exception |
+| `status` | int | 是 | 子任务状态码：0-6（见数据模型文档） |
 | `result` | object | 否 | 执行结果（完成状态必填） |
 
 #### 响应示例
@@ -621,14 +551,6 @@ GET /v1/tasks?app_id=agent-eval-app&status=running&offset=0&limit=20
 }
 ```
 
-#### 业务逻辑
-
-1. 参数校验：检查必填字段、status枚举值
-2. 更新SubTask：更新子任务状态和结果
-3. 检查DAGNode：检查所属DAGNode是否全部完成
-4. 触发节点释放：若DAGNode完成，触发后续节点释放
-5. 更新Task状态：若所有DAGNode完成，更新Task状态
-
 ---
 
 ### 4.3 执行服务健康检查接口
@@ -641,10 +563,6 @@ GET /v1/tasks?app_id=agent-eval-app&status=running&offset=0&limit=20
 | 说明 | 调度服务检查执行服务健康状态 |
 | 调用方 | 调度服务 |
 | 被调方 | 执行服务 |
-
-#### 请求参数
-
-无参数。
 
 #### 响应示例
 
@@ -677,12 +595,6 @@ GET /v1/tasks?app_id=agent-eval-app&status=running&offset=0&limit=20
     }
 }
 ```
-
-#### 业务逻辑
-
-1. 检查本地状态：查询活跃子任务数量
-2. 计算负载：活跃子任务数 / 最大并发数
-3. 返回状态：包含健康状态、负载信息
 
 ---
 
@@ -726,28 +638,83 @@ POST /internal/subtasks/subtask-001/cancel
 }
 ```
 
-**错误响应（子任务不存在）**：
-
-```json
-{
-    "code": 10400,
-    "message": "subtask not found: subtask-001",
-    "data": null
-}
-```
-
-#### 业务逻辑
-
-1. 查询子任务：检查子任务是否存在
-2. 状态检查：子任务状态必须为 `Allocated` 或 `Running`
-3. 取消执行：若正在执行，关闭沙箱实例
-4. 更新状态：SubTask状态改为 `Canceled`
-
 ---
 
 ## 五、数据结构定义
 
-### 5.1 TaskConfig（任务配置）
+### 5.1 任务配置（TaskConfig）
+
+任务配置根据 `type` 字段解析为不同类型：
+
+#### 5.1.1 ModelEvalConfig（模型评测配置）
+
+**适用类型**：`type = model_eval`
+
+```json
+{
+    "version": "0.2.0",
+    "dataset": "http://storage.example.com/datasets/dataset.xlsx",
+    "agents": [
+        {
+            "id": "agent-001",
+            "name": "TestAgent",
+            "config": {
+                "model": "deepseek-r1",
+                "prompt": "..."
+            }
+        }
+    ],
+    "models": [
+        {
+            "id": "judge-001",
+            "type": "api-openai",
+            "api_key": "sk-xxx",
+            "api_url": "https://api.example.com",
+            "model": "deepseek-r1",
+            "concurrency": 40
+        }
+    ],
+    "eval": [
+        {
+            "dimension": "accuracy",
+            "type": "subj_assessment",
+            "judge": "judge-001"
+        }
+    ]
+}
+```
+
+**字段说明**：
+
+| 字段 | 类型 | 必填 | 说明 | 校验规则 |
+|------|------|------|------|----------|
+| `version` | string | 否 | 配置版本 | 默认 `0.2.0` |
+| `dataset` | string | 是 | 评测数据集URL | 非空，有效的URL格式 |
+| `agents` | array | 是 | 待评测Agent配置列表 | 非空数组 |
+| `models` | array | 是 | 评委模型配置列表 | 非空数组，元素见 ModelConfig |
+| `eval` | array | 是 | 评测维度配置列表 | 非空数组 |
+
+**AgentConfig 字段说明**：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `id` | string | 是 | Agent唯一标识 |
+| `name` | string | 是 | Agent名称 |
+| `config` | object | 是 | Agent运行配置（动态结构） |
+
+**EvalDimension 字段说明**：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `dimension` | string | 是 | 评测维度名称 |
+| `type` | string | 是 | 评测类型：`subj_assessment`（主观）/ `obj_assessment`（客观） |
+| `judge` | string | 否 | 评委模型ID（主观评测必填） |
+
+---
+
+#### 5.1.2 AgentEvalConfig（应用评测配置）
+
+**适用类型**：`type = agent_eval`
 
 ```json
 {
@@ -779,7 +746,8 @@ POST /internal/subtasks/subtask-001/cancel
     "report": {
         "type": "agent",
         "model": "ID_JUDGE_001"
-    }
+    },
+    "resources": "http://storage.example.com/resources/task-abc123.zip"
 }
 ```
 
@@ -788,14 +756,28 @@ POST /internal/subtasks/subtask-001/cancel
 | 字段 | 类型 | 必填 | 说明 | 校验规则 |
 |------|------|------|------|----------|
 | `version` | string | 否 | 配置版本 | 默认 `1.0.0` |
-| `workflow` | array | 是 | 执行阶段列表 | 非空数组，元素为synthesis/inference/eval/report |
-| `models` | array | 是 | 模型配置列表 | 非空数组，每个元素见ModelConfig |
+| `workflow` | array | 是 | 执行阶段列表 | 非空数组，元素为 `synthesis`/`inference`/`eval`/`report` |
+| `models` | array | 是 | 模型配置列表 | 非空数组，元素见 ModelConfig |
 | `synthesis` | object | 否 | synthesis阶段配置 | workflow包含synthesis时必填 |
 | `inference` | object | 否 | inference阶段配置 | workflow包含inference时必填 |
 | `eval` | object | 否 | eval阶段配置 | workflow包含eval时必填 |
 | `report` | object | 否 | report阶段配置 | workflow包含report时必填 |
+| `resources` | string | 否 | 资源文件包URL | 有效URL格式 |
+
+**阶段配置说明**：
+
+| 阶段 | 配置字段 | 说明 |
+|------|----------|------|
+| synthesis | `synthesis` | 评测集合成配置，包含type、count、model等 |
+| inference | `inference` | Agent推理执行配置，包含type、model、merge_eval等 |
+| eval | `eval` | 评测执行配置，包含model等 |
+| report | `report` | 报告生成配置，包含type、model等 |
+
+---
 
 ### 5.2 ModelConfig（模型配置）
+
+适用于 ModelEvalConfig 和 AgentEvalConfig 中的 models 字段。
 
 ```json
 {
@@ -813,54 +795,78 @@ POST /internal/subtasks/subtask-001/cancel
 | 字段 | 类型 | 必填 | 说明 | 校验规则 |
 |------|------|------|------|----------|
 | `id` | string | 是 | 模型唯一标识 | 非空，其他配置通过id引用 |
-| `type` | string | 是 | 模型类型 | 枚举：api-openai/api-anthropic/local |
+| `type` | string | 是 | 模型类型 | 枚举：`api-openai`/`api-anthropic`/`local` |
 | `api_key` | string | 否 | API密钥 | type为api-*时必填 |
 | `api_url` | string | 否 | API地址 | type为api-*时必填 |
 | `model` | string | 是 | 模型名称 | 非空 |
 | `concurrency` | int | 否 | 并发数 | 默认10，最小1，最大100 |
 
-### 5.3 TaskResources（评测资源）
+---
 
-```json
-{
-    "skills": "base64编码的skills目录tar.gz内容",
-    "files": {
-        "a.pdf": "base64编码的PDF文件内容",
-        "b.xlsx": "base64编码的Excel文件内容"
+### 5.3 任务类型扩展机制
+
+为支持后续新增评测任务类型，采用以下扩展机制：
+
+#### 扩展步骤
+
+1. **定义任务类型枚举值**：在 `type` 字段的枚举列表中新增类型
+2. **定义配置结构**：创建对应的 Config 结构定义（如 `XXXEvalConfig`）
+3. **注册配置解析器**：在服务启动时注册 type → Config 的映射关系
+4. **实现任务拆分逻辑**：为新类型实现 DAG 拆分和子任务生成逻辑
+
+#### 配置解析机制
+
+```go
+// 配置解析接口
+type ConfigParser interface {
+    Parse(rawConfig map[string]interface{}) (Config, error)
+    Validate(config Config) error
+}
+
+// 配置注册表
+var configRegistry = map[string]ConfigParser{
+    "model_eval": &ModelEvalConfigParser{},
+    "agent_eval": &AgentEvalConfigParser{},
+    // 后续扩展：
+    // "new_type": &NewTypeConfigParser{},
+}
+
+// 根据type解析配置
+func ParseConfig(type string, rawConfig map[string]interface{}) (Config, error) {
+    parser, ok := configRegistry[type]
+    if !ok {
+        return nil, fmt.Errorf("unknown task type: %s", type)
     }
+    return parser.Parse(rawConfig)
 }
 ```
 
-**字段说明**：
+#### 后续扩展示例
 
-| 字段 | 类型 | 必填 | 说明 | 校验规则 |
-|------|------|------|------|----------|
-| `skills` | string | 是 | skills目录打包内容 | Base64编码，解压后为tar.gz格式 |
-| `files` | object | 否 | resource文件映射 | 文件名 → Base64编码内容 |
+如需新增"安全评测任务"（`safety_eval`）：
+
+1. 添加枚举值：`type` 枚举新增 `safety_eval`
+2. 定义配置：创建 `SafetyEvalConfig` 结构
+3. 注册解析器：实现 `SafetyEvalConfigParser`
+4. 实现拆分：创建对应的 DAG 拆分逻辑
+
+---
 
 ### 5.4 TaskResult（评测结果）
 
 ```json
 {
-    "report_url": "https://storage.example.com/reports/agent-eval-abc123/report.html",
+    "success": 1,
+    "message": "",
+    "progress": 100,
+    "report_url": "https://storage.example.com/reports/task-abc123/report.html",
     "usages": [
         {
             "model_id": "ID_JUDGE_001",
             "input_tokens": 50000,
             "output_tokens": 10000
         }
-    ],
-    "conclusion": {
-        "score": 85.5,
-        "summary": "整体表现良好",
-        "details": [
-            {
-                "dimension": "accuracy",
-                "score": 90.0,
-                "reason": "回答准确率高"
-            }
-        ]
-    }
+    ]
 }
 ```
 
@@ -868,9 +874,11 @@ POST /internal/subtasks/subtask-001/cancel
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
+| `success` | int | 是 | 执行结果：1成功 / -1失败 |
+| `message` | string | 否 | 失败信息 |
+| `progress` | int | 是 | 进度 0-100 |
 | `report_url` | string | 否 | 评测报告URL（完成状态填充） |
 | `usages` | array | 否 | Token消耗统计列表 |
-| `conclusion` | object | 否 | 评测结论（完成状态填充） |
 
 ### 5.5 SubTaskResult（子任务执行结果）
 
@@ -878,15 +886,19 @@ POST /internal/subtasks/subtask-001/cancel
 {
     "success": 1,
     "message": "",
-    "output_files": {
-        "transcript.jsonl": "/root/workspace/transcript.jsonl",
-        "evalset.jsonl": "/root/workspace/evalset.jsonl"
-    },
-    "usage": {
-        "model_id": "ID_JUDGE_001",
-        "input_tokens": 1000,
-        "output_tokens": 500
-    }
+    "progress": 100,
+    "report_url": "",
+    "usages": [
+        {
+            "model_id": "ID_JUDGE_001",
+            "input_tokens": 1000,
+            "output_tokens": 500
+        }
+    ],
+    "output_files": [
+        "http://storage.example.com/outputs/task-abc123/transcript.jsonl",
+        "http://storage.example.com/outputs/task-abc123/evalset.jsonl"
+    ]
 }
 ```
 
@@ -894,53 +906,18 @@ POST /internal/subtasks/subtask-001/cancel
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `success` | int | 是 | 执行结果：-1失败 / 0执行中 / 1完成 |
+| `success` | int | 是 | 执行结果：1成功 / -1失败 |
 | `message` | string | 否 | 执行消息（失败时填充错误信息） |
-| `output_files` | object | 否 | 输出文件路径映射 |
-| `usage` | object | 否 | Token消耗统计 |
+| `progress` | int | 是 | 进度 0-100 |
+| `report_url` | string | 否 | 报告URL |
+| `usages` | array | 否 | Token消耗统计列表 |
+| `output_files` | array | 否 | 输出文件URL列表 |
 
 ---
 
-## 六、状态枚举定义
+## 六、错误码详细定义
 
-### 6.1 TaskStatus（任务状态）
-
-| 值 | 名称 | 说明 |
-|----|------|------|
-| 0 | waiting | 等待中（DAG节点未释放） |
-| 1 | running | 执行中（有子任务正在执行） |
-| 2 | finished | 执行完成 |
-| 3 | failed | 任务失败 |
-| 4 | canceled | 任务取消 |
-| 5 | exception | 任务异常（中间态） |
-
-### 6.2 SubTaskStatus（子任务状态）
-
-| 值 | 名称 | 说明 |
-|----|------|------|
-| 0 | waiting | 等待调度 |
-| 1 | allocated | 已分配执行服务 |
-| 2 | running | 运行中 |
-| 3 | finished | 完成 |
-| 4 | failed | 失败 |
-| 5 | exception | 异常（可重试） |
-| 6 | canceled | 取消 |
-
-### 6.3 DAGNodeStatus（DAG节点状态）
-
-| 值 | 名称 | 说明 |
-|----|------|------|
-| 0 | blocked | 阻塞（依赖节点未完成） |
-| 1 | ready | 就绪（依赖节点已完成） |
-| 2 | running | 运行中 |
-| 3 | finished | 完成 |
-| 4 | failed | 失败 |
-
----
-
-## 七、错误码详细定义
-
-### 7.1 API接口错误码 (102xx)
+### 6.1 API接口错误码 (102xx)
 
 | 错误码 | 错误类型 | 说明 | 典型场景 |
 |-------|---------|------|----------|
@@ -949,34 +926,8 @@ POST /internal/subtasks/subtask-001/cancel
 | 10203 | request_body_decode_error | 解析请求体错误 | JSON格式错误、字段类型错误 |
 | 10204 | request_param_invalid_error | 请求参数校验失败 | 必填字段缺失、参数格式错误 |
 | 10205 | config_parse_error | 配置解析错误 | workflow格式错误、models缺失 |
-| 10206 | resource_decode_error | 资源解码错误 | Base64解码失败、tar.gz解压失败 |
 
-**错误响应示例**：
-
-```json
-// 10201 权限校验失败
-{
-    "code": 10201,
-    "message": "request authorized failed: app_id mismatch, expected 'agent-eval-app', got 'other-app'",
-    "data": null
-}
-
-// 10203 解析错误
-{
-    "code": 10203,
-    "message": "request body decode error: invalid JSON format, unexpected character at position 42",
-    "data": null
-}
-
-// 10204 参数校验失败
-{
-    "code": 10204,
-    "message": "request param invalid: field 'workflow' is required but missing",
-    "data": null
-}
-```
-
-### 7.2 任务调度错误码 (103xx)
+### 6.2 任务调度错误码 (103xx)
 
 | 错误码 | 错误类型 | 说明 | 典型场景 |
 |-------|---------|------|----------|
@@ -990,32 +941,7 @@ POST /internal/subtasks/subtask-001/cancel
 | 10307 | task_already_finished_error | 任务已完成 | 无法取消已完成的任务 |
 | 10308 | task_retry_count_over_limit_error | 重试次数超限 | 子任务重试次数超过最大限制 |
 
-**错误响应示例**：
-
-```json
-// 10300 无可用执行服务
-{
-    "code": 10300,
-    "message": "no available executor: all executors are offline or overloaded",
-    "data": null
-}
-
-// 10306 任务不存在
-{
-    "code": 10306,
-    "message": "task not found: task_id 'agent-eval-abc123' does not exist",
-    "data": null
-}
-
-// 10307 任务已完成
-{
-    "code": 10307,
-    "message": "task already finished: cannot cancel task in 'finished' status",
-    "data": null
-}
-```
-
-### 7.3 子任务执行错误码 (104xx)
+### 6.3 子任务执行错误码 (104xx)
 
 | 错误码 | 错误类型 | 说明 | 典型场景 |
 |-------|---------|------|----------|
@@ -1030,163 +956,9 @@ POST /internal/subtasks/subtask-001/cancel
 | 10408 | evaldata_upload_error | 上传结果失败 | eval-data服务异常 |
 | 10409 | output_parse_error | 输出解析错误 | 结果文件格式错误 |
 
-**错误响应示例**：
-
-```json
-// 10401 创建沙箱失败
-{
-    "code": 10401,
-    "message": "sandbox create error: AgentCube service returned error: quota exceeded",
-    "data": null
-}
-
-// 10405 执行超时
-{
-    "code": 10405,
-    "message": "sandbox timeout error: command execution exceeded 10 minutes timeout",
-    "data": null
-}
-```
-
 ---
 
-## 八、参数校验规则
-
-### 8.1 通用校验规则
-
-| 字段类型 | 校验规则 |
-|----------|----------|
-| **string** | 非空检查、长度限制、正则匹配 |
-| **int** | 范围检查、最小值、最大值 |
-| **array** | 非空检查、长度限制、元素类型检查 |
-| **object** | 必填字段检查、嵌套校验 |
-| **base64** | Base64格式校验、解码后内容校验 |
-
-### 8.2 各接口参数校验
-
-#### 任务提交接口
-
-| 字段 | 校验规则 |
-|------|----------|
-| `app_id` | 非空，最大64字符，匹配 `[a-zA-Z0-9_-]+` |
-| `description` | 最大500字符 |
-| `config.workflow` | 非空数组，元素为synthesis/inference/eval/report |
-| `config.models` | 非空数组，至少1个元素 |
-| `config.models[].id` | 非空，唯一性检查 |
-| `config.models[].type` | 枚举：api-openai/api-anthropic/local |
-| `config.models[].model` | 非空 |
-| `resources.skills` | Base64编码，解码后为有效的tar.gz |
-
-#### 任务查询接口
-
-| 字段 | 校验规则 |
-|------|----------|
-| `task_id` | 非空，格式 `agent-eval-{uuid}` |
-| `app_id` | 非空，最大64字符 |
-
-#### 任务取消接口
-
-| 字段 | 校验规则 |
-|------|----------|
-| `task_id` | 非空，格式 `agent-eval-{uuid}` |
-| `app_id` | 非空，与任务app_id一致 |
-| `action` | 固定值 `cancel` |
-
-#### 任务列表接口
-
-| 字段 | 校验规则 |
-|------|----------|
-| `app_id` | 非空，最大64字符 |
-| `status` | 枚举：waiting/running/finished/failed/canceled |
-| `offset` | 最小0 |
-| `limit` | 最小1，最大100 |
-
----
-
-## 九、调用示例
-
-### 9.1 任务提交示例
-
-**curl命令**：
-
-```bash
-curl -X POST "http://localhost:8080/v1/tasks" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "app_id": "agent-eval-app",
-    "description": "Skill评测任务",
-    "config": {
-      "version": "1.0.0",
-      "workflow": ["synthesis", "inference", "eval", "report"],
-      "models": [
-        {
-          "id": "ID_JUDGE_001",
-          "type": "api-openai",
-          "api_key": "sk-xxx",
-          "api_url": "https://api.example.com",
-          "model": "deepseek-r1",
-          "concurrency": 40
-        }
-      ],
-      "synthesis": {
-        "type": "agent",
-        "count": 10,
-        "model": "ID_JUDGE_001"
-      },
-      "inference": {
-        "type": "claude-code",
-        "model": "ID_JUDGE_001",
-        "merge_eval": false
-      },
-      "eval": {
-        "model": "ID_JUDGE_001"
-      },
-      "report": {
-        "type": "agent",
-        "model": "ID_JUDGE_001"
-      }
-    },
-    "resources": {
-      "skills": "BASE64_ENCODED_CONTENT",
-      "files": {}
-    }
-  }'
-```
-
-### 9.2 任务查询示例
-
-**curl命令**：
-
-```bash
-curl -X GET "http://localhost:8080/v1/tasks/agent-eval-abc123?app_id=agent-eval-app"
-```
-
-### 9.3 任务取消示例
-
-**curl命令**：
-
-```bash
-curl -X PATCH "http://localhost:8080/v1/tasks/agent-eval-abc123" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "app_id": "agent-eval-app",
-    "action": "cancel"
-  }'
-```
-
-### 9.4 任务列表查询示例
-
-**curl命令**：
-
-```bash
-curl -X GET "http://localhost:8080/v1/tasks?app_id=agent-eval-app&status=running&offset=0&limit=20"
-```
-
----
-
-## 十、附录
-
-### A. 接口路径汇总
+## 七、接口路径汇总
 
 | 接口 | 路径 | 方法 | 类型 |
 |------|------|------|------|
@@ -1199,23 +971,10 @@ curl -X GET "http://localhost:8080/v1/tasks?app_id=agent-eval-app&status=running
 | 执行服务健康检查 | `/internal/health` | GET | 内部 |
 | 子任务取消 | `/internal/subtasks/:sub_task_id/cancel` | POST | 内部 |
 
-### B. HTTP状态码使用规范
+---
 
-| HTTP状态码 | 使用场景 |
-|-----------|----------|
-| 200 | 请求成功（业务响应码在body中） |
-| 400 | 请求格式错误（无法解析请求体） |
-| 404 | 资源不存在（路径错误） |
-| 500 | 服务内部错误（未预期的异常） |
+## 八、相关文档
 
-### C. 接口版本管理
-
-| 版本 | 路径前缀 | 说明 |
-|------|----------|------|
-| v1 | `/v1/` | 当前版本 |
-| v2 | `/v2/` | 未来版本（预留） |
-
-**版本升级策略**：
-- 新增接口：可直接在当前版本添加
-- 兼容修改：在当前版本扩展，保持向后兼容
-- 不兼容修改：发布新版本，旧版本标记deprecated
+- [架构设计文档](架构设计文档.md) - 系统架构、核心概念
+- [数据模型设计文档](数据模型设计文档.md) - 数据结构、状态枚举定义
+- [模块设计文档](模块设计文档.md) - 服务模块详细设计
