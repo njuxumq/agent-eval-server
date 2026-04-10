@@ -213,7 +213,7 @@ synthesis → [case_1, case_2, ...] → report
 | `/internal/subtasks/status` | POST | 状态上报 |
 | `/internal/health` | GET | 健康检查 |
 
-详细接口文档见 [API接口详细设计文档](docs/designs/API接口详细设计文档.md)。
+详细接口文档见 [API接口设计文档](docs/designs/API接口设计文档.md)。
 
 ## 开发指南
 
@@ -259,11 +259,20 @@ make build
 
 | 文档 | 说明 |
 |------|------|
-| [应用评测服务架构设计文档](docs/designs/应用评测服务架构设计文档.md) | 系统架构总览 |
-| [数据模型详细设计文档](docs/designs/数据模型详细设计文档.md) | MongoDB 表结构设计 |
-| [API接口详细设计文档](docs/designs/API接口详细设计文档.md) | 接口定义与示例 |
-| [调度服务模块详细设计文档](docs/designs/调度服务模块详细设计文档.md) | 调度服务模块设计 |
-| [执行服务模块详细设计文档](docs/designs/执行服务模块详细设计文档.md) | 执行服务模块设计 |
+| [架构设计文档](docs/designs/架构设计文档.md) | 系统架构总览 |
+| [数据模型设计文档](docs/designs/数据模型设计文档.md) | MongoDB 表结构设计 |
+| [API接口设计文档](docs/designs/API接口设计文档.md) | 接口定义与示例 |
+| [模块设计文档](docs/designs/模块设计文档.md) | 调度服务与执行服务模块设计 |
+
+#### 详细设计文档
+
+| 文档 | 说明 |
+|------|------|
+| [DAG构建器设计](docs/designs/details/DAG构建器设计.md) | 任务 DAG 构建逻辑 |
+| [DAG调度器设计](docs/designs/details/DAG调度器设计.md) | DAG 节点调度执行 |
+| [事件总线设计](docs/designs/details/事件总线设计.md) | 任务状态事件管理 |
+| [任务拆分器设计](docs/designs/details/任务拆分器设计.md) | 任务拆分逻辑 |
+| [子任务处理器设计](docs/designs/details/子任务处理器设计.md) | 子任务执行处理 |
 
 ### 规范文档
 
@@ -317,8 +326,6 @@ docker-compose up -d
 # 应用配置
 kubectl apply -f deploy/k8s/
 ```
-
-详细部署文档见 [部署设计文档](docs/designs/部署设计文档.md)。
 
 ## 监控
 

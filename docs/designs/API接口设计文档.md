@@ -434,7 +434,8 @@ GET /v1/tasks?app_id=agent-eval-app&type=agent_eval&status=running&offset=0&limi
 {
     "sub_task_id": "subtask-001",
     "task_id": "task-abc123",
-    "type": "inference",
+    "type": "agent_eval",
+    "sub_type": "inference",
     "input": {
         "command": "astron-eval",
         "args": ["--config", "./task.yaml", "--stage", "inference"],
@@ -461,7 +462,8 @@ GET /v1/tasks?app_id=agent-eval-app&type=agent_eval&status=running&offset=0&limi
 |------|------|------|------|
 | `sub_task_id` | string | 是 | 子任务唯一标识 |
 | `task_id` | string | 是 | 所属任务ID |
-| `type` | string | 是 | 子任务类型 |
+| `type` | string | 是 | 任务类型（agent_eval/model_eval），用于 Registry 选择 Handler |
+| `sub_type` | string | 是 | 子任务阶段类型（synthesis/inference/eval/report） |
 | `input` | object | 是 | 执行参数（命令、环境变量、输入文件等） |
 
 #### 响应示例
@@ -805,50 +807,67 @@ POST /internal/subtasks/subtask-001/cancel
 
 ### 5.3 任务类型扩展机制
 
-为支持后续新增评测任务类型，采用以下扩展机制：
+为支持后续新增评测任务类型，采用分层 Registry + 策略模式的扩展机制：
+
+#### 设计原则
+
+- **调度服务侧**：
+  - ConfigParserRegistry：按 `Task.type` 注册 ConfigParser（供 API 层校验）
+  - TaskSplitter：内部注册 SplitStrategy（拆分策略）
+  - DAGBuilder：内部注册 BuildStrategy（构建策略）
+- **执行服务侧**：SubTaskHandlerRegistry 按 `(type, sub_type)` 注册 Handler
+- **新增类型只需实现策略接口并注册，无需修改现有代码**
 
 #### 扩展步骤
 
 1. **定义任务类型枚举值**：在 `type` 字段的枚举列表中新增类型
 2. **定义配置结构**：创建对应的 Config 结构定义（如 `XXXEvalConfig`）
-3. **注册配置解析器**：在服务启动时注册 type → Config 的映射关系
-4. **实现任务拆分逻辑**：为新类型实现 DAG 拆分和子任务生成逻辑
+3. **实现 ConfigParser**：解析和校验配置
+4. **实现 SplitStrategy**：定义拆分为子任务的逻辑
+5. **实现 BuildStrategy**：定义 DAG 依赖关系
+6. **实现 SubTaskHandler**：各阶段的执行逻辑
+7. **注册到对应组件**：服务启动时调用 Register 方法
 
-#### 配置解析机制
+#### 调度服务组件
 
-```go
-// 配置解析接口
-type ConfigParser interface {
-    Parse(rawConfig map[string]interface{}) (Config, error)
-    Validate(config Config) error
-}
+| 组件 | 注册方法 | 策略接口 |
+|------|---------|---------|
+| ConfigParserRegistry | `Register(taskType, parser)` | `ConfigParser` |
+| TaskSplitter | `RegisterStrategy(taskType, strategy)` | `SplitStrategy` |
+| DAGBuilder | `RegisterStrategy(taskType, strategy)` | `BuildStrategy` |
 
-// 配置注册表
-var configRegistry = map[string]ConfigParser{
-    "model_eval": &ModelEvalConfigParser{},
-    "agent_eval": &AgentEvalConfigParser{},
-    // 后续扩展：
-    // "new_type": &NewTypeConfigParser{},
-}
+#### 执行服务组件
 
-// 根据type解析配置
-func ParseConfig(type string, rawConfig map[string]interface{}) (Config, error) {
-    parser, ok := configRegistry[type]
-    if !ok {
-        return nil, fmt.Errorf("unknown task type: %s", type)
-    }
-    return parser.Parse(rawConfig)
+| 组件 | 注册方法 | 策略接口 |
+|------|---------|---------|
+| SubTaskHandlerRegistry | `Register(type, subType, handler)` | `SubTaskHandler` |
+
+#### SubTask 数据结构
+
+执行服务根据 `type` 和 `sub_type` 组合键选择 Handler：
+
+```javascript
+{
+    "sub_task_id": "subtask-001",
+    "task_id": "task-abc123",
+    "type": "agent_eval",       // 任务类型
+    "sub_type": "inference",    // 子任务阶段类型
+    // ...
 }
 ```
 
-#### 后续扩展示例
+#### 扩展示例
 
-如需新增"安全评测任务"（`safety_eval`）：
+新增 `safety_eval` 任务类型：
 
-1. 添加枚举值：`type` 枚举新增 `safety_eval`
-2. 定义配置：创建 `SafetyEvalConfig` 结构
-3. 注册解析器：实现 `SafetyEvalConfigParser`
-4. 实现拆分：创建对应的 DAG 拆分逻辑
+| 步骤 | 组件 | 实现 |
+|-----|------|------|
+| 1 | ConfigParser | `SafetyEvalConfigParser` |
+| 2 | SplitStrategy | `SafetyEvalSplitStrategy` |
+| 3 | BuildStrategy | `SafetyEvalBuildStrategy` |
+| 4 | SubTaskHandler | `SafetyEvalXxxHandler`（各阶段） |
+
+**无需修改** TaskManager、SubTaskManager、DAGScheduler 等现有代码。
 
 ---
 
@@ -952,8 +971,8 @@ func ParseConfig(type string, rawConfig map[string]interface{}) (Config, error) 
 | 10404 | sandbox_download_error | 下载结果失败 | 结果文件不存在 |
 | 10405 | sandbox_timeout_error | 执行超时 | 命令执行超过时间限制 |
 | 10406 | sandbox_close_error | 关闭沙箱失败 | 沙箱实例关闭异常 |
-| 10407 | evaldata_fetch_error | 获取评测集失败 | eval-data服务异常 |
-| 10408 | evaldata_upload_error | 上传结果失败 | eval-data服务异常 |
+| 10407 | evaldata_fetch_error | 获取评测集失败 | 数据管理服务异常 |
+| 10408 | evaldata_upload_error | 上传结果失败 | 数据管理服务异常 |
 | 10409 | output_parse_error | 输出解析错误 | 结果文件格式错误 |
 
 ---

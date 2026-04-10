@@ -206,6 +206,15 @@
 - [模块设计文档](docs/designs/模块设计文档.md)
 - [项目开发规划文档](docs/项目开发规划文档.md)
 
+#### 详细设计文档
+- [DAG构建器设计](docs/designs/details/DAG构建器设计.md)
+- [DAG调度器设计](docs/designs/details/DAG调度器设计.md)
+- [事件总线设计](docs/designs/details/事件总线设计.md)
+- [任务拆分器设计](docs/designs/details/任务拆分器设计.md)
+- [配额分配器设计](docs/designs/details/配额分配器设计.md)
+- [子任务分发器设计](docs/designs/details/子任务分发器设计.md)
+- [子任务处理器设计](docs/designs/details/子任务处理器设计.md)
+
 ### 规范文档
 - [代码开发规范](docs/standards/代码开发规范.md)
 
