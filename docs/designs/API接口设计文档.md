@@ -722,6 +722,11 @@ POST /internal/subtasks/subtask-001/cancel
 {
     "version": "1.0.0",
     "workflow": ["synthesis", "inference", "eval", "report"],
+    "agents" : [
+        {
+            "type": "claude code"
+        }
+    ],
     "models": [
         {
             "id": "ID_JUDGE_001",
@@ -735,21 +740,33 @@ POST /internal/subtasks/subtask-001/cancel
     "synthesis": {
         "type": "agent",
         "count": 10,
-        "model": "ID_JUDGE_001"
+        "model": "",
     },
-    "inference": {
-        "type": "claude-code",
-        "model": "ID_JUDGE_001",
-        "merge_eval": false
+    "inferences": {
+        "model": [
+            "",
+            "",
+            ""
+        ]
     },
     "eval": {
-        "model": "ID_JUDGE_001"
+        "model": ""
     },
     "report": {
         "type": "agent",
         "model": "ID_JUDGE_001"
     },
-    "resources": "http://storage.example.com/resources/task-abc123.zip"
+    "skills": [
+        {
+            "type": "",
+            "url": ""  // zip 包，解压后时skills文件夹，文件夹内部由用户给出
+        },
+        {
+
+        }
+    ],
+    "resources": "",
+   
 }
 ```
 
