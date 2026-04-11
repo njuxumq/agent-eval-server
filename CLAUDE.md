@@ -207,13 +207,23 @@
 - [项目开发规划文档](docs/项目开发规划文档.md)
 
 #### 详细设计文档
-- [DAG构建器设计](docs/designs/details/DAG构建器设计.md)
-- [DAG调度器设计](docs/designs/details/DAG调度器设计.md)
-- [事件总线设计](docs/designs/details/事件总线设计.md)
-- [任务拆分器设计](docs/designs/details/任务拆分器设计.md)
-- [配额分配器设计](docs/designs/details/配额分配器设计.md)
-- [子任务分发器设计](docs/designs/details/子任务分发器设计.md)
-- [子任务处理器设计](docs/designs/details/子任务处理器设计.md)
+
+**调度服务**：
+- [任务管理器设计](docs/designs/details/scheduler/任务管理器设计.md)
+- [任务拆分器设计](docs/designs/details/scheduler/任务拆分器设计.md)
+- [DAG构建器设计](docs/designs/details/scheduler/DAG构建器设计.md)
+- [事件总线设计](docs/designs/details/scheduler/事件总线设计.md)
+- [DAG调度器设计](docs/designs/details/scheduler/DAG调度器设计.md)
+- [配额分配器设计](docs/designs/details/scheduler/配额分配器设计.md)
+- [子任务分发器设计](docs/designs/details/scheduler/子任务分发器设计.md)
+- [执行服务管理器设计](docs/designs/details/scheduler/执行服务管理器设计.md)
+- [主从模式设计](docs/designs/details/scheduler/主从模式设计.md)
+
+**执行服务**：
+- [子任务管理器设计](docs/designs/details/executor/子任务管理器设计.md)
+- [沙箱管理器设计](docs/designs/details/executor/沙箱管理器设计.md)
+- [结果上报器设计](docs/designs/details/executor/结果上报器设计.md)
+- [子任务处理器设计](docs/designs/details/executor/子任务处理器设计.md)
 
 ### 规范文档
 - [代码开发规范](docs/standards/代码开发规范.md)
