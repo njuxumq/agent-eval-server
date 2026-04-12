@@ -720,53 +720,72 @@ POST /internal/subtasks/subtask-001/cancel
 
 ```json
 {
-    "version": "1.0.0",
-    "workflow": ["synthesis", "inference", "eval", "report"],
-    "agents" : [
-        {
-            "type": "claude code"
-        }
-    ],
-    "models": [
-        {
-            "id": "ID_JUDGE_001",
-            "type": "api-openai",
-            "api_key": "sk-xxx",
-            "api_url": "https://api.example.com",
-            "model": "deepseek-r1",
-            "concurrency": 40
-        }
-    ],
-    "synthesis": {
-        "type": "agent",
-        "count": 10,
-        "model": "",
-    },
-    "inferences": {
-        "model": [
-            "",
-            "",
-            ""
+    "version": "2.0.0",
+    "config": {
+        "models": [
+            {
+                "id": "candidate-1",
+                "type": "api-openai",
+                "api_key": "sk-xxx",
+                "api_url": "https://api.example.com",
+                "model": "gpt-4.1",
+                "concurrency": 10
+            },
+            {
+                "id": "candidate-2",
+                "type": "api-openai",
+                "api_key": "sk-xxx",
+                "api_url": "https://api.example.com",
+                "model": "claude-sonnet-4-6",
+                "concurrency": 10
+            }
+        ],
+        "agents": [
+            {
+                "id": "agent-claude-code",
+                "type": "claude-code",
+                "config": {}
+            }
+        ],
+        "skills": [
+            {
+                "type": "s3",
+                "url": "https://storage.example.com/skills/skill-v1.zip"
+            }
         ]
     },
-    "eval": {
-        "model": ""
-    },
-    "report": {
-        "type": "agent",
-        "model": "ID_JUDGE_001"
-    },
-    "skills": [
-        {
-            "type": "",
-            "url": ""  // zip 包，解压后时skills文件夹，文件夹内部由用户给出
+    "execution": {
+        "workflow": ["synthesis", "inference", "eval", "report"],
+        "models": [
+            {
+                "id": "judge-1",
+                "type": "api-openai",
+                "api_key": "sk-xxx",
+                "api_url": "https://api.example.com",
+                "model": "deepseek-r1",
+                "concurrency": 40
+            }
+        ],
+        "synthesis": {
+            "type": "agent",
+            "count": 10,
+            "model": "judge-1"
         },
-        {
-
+        "inference": {
+            "models": ["candidate-1", "candidate-2"]
+        },
+        "eval": {
+            "model": "judge-1"
+        },
+        "report": {
+            "type": "agent",
+            "model": "judge-1"
+        },
+        "resources": {
+            "type": "s3",
+            "url": "https://storage.example.com/resources/resource-1.zip"
         }
-    ],
-    "resources": "",
-   
+    }
 }
 ```
 
@@ -774,23 +793,106 @@ POST /internal/subtasks/subtask-001/cancel
 
 | 字段 | 类型 | 必填 | 说明 | 校验规则 |
 |------|------|------|------|----------|
-| `version` | string | 否 | 配置版本 | 默认 `1.0.0` |
-| `workflow` | array | 是 | 执行阶段列表 | 非空数组，元素为 `synthesis`/`inference`/`eval`/`report` |
-| `models` | array | 是 | 模型配置列表 | 非空数组，元素见 ModelConfig |
-| `synthesis` | object | 否 | synthesis阶段配置 | workflow包含synthesis时必填 |
-| `inference` | object | 否 | inference阶段配置 | workflow包含inference时必填 |
-| `eval` | object | 否 | eval阶段配置 | workflow包含eval时必填 |
-| `report` | object | 否 | report阶段配置 | workflow包含report时必填 |
-| `resources` | string | 否 | 资源文件包URL | 有效URL格式 |
+| `version` | string | 否 | 配置版本 | 默认 `2.0.0` |
+| `config` | object | 是 | 实验对象定义 | 见下方 Config 字段说明 |
+| `execution` | object | 是 | 阶段执行配置 | 见下方 Execution 字段说明 |
+
+**Config 字段说明**：
+
+| 字段 | 类型 | 必填 | 说明 | 校验规则 |
+|------|------|------|------|----------|
+| `config.models` | array | 是 | 实验对象模型定义列表 | 非空数组，元素见 ModelConfig |
+| `config.agents` | array | 是 | 实验对象Agent定义列表 | 非空数组，元素见 AgentConfig |
+| `config.skills` | array | 是 | 实验对象Skill定义列表 | 非空数组，元素见 SkillConfig |
+
+**Execution 字段说明**：
+
+| 字段 | 类型 | 必填 | 说明 | 校验规则 |
+|------|------|------|------|----------|
+| `execution.workflow` | array | 是 | 执行阶段列表 | 非空数组，元素为 `synthesis` / `inference` / `eval` / `report`；顺序必须合法 |
+| `execution.models` | array | 否 | 阶段执行依赖模型列表 | 可为空数组，元素见 ModelConfig；用于 synthesis / eval / report 等阶段引用 |
+| `execution.synthesis` | object | 否 | synthesis阶段配置 | `workflow` 包含 `synthesis` 时必填 |
+| `execution.inference` | object | 否 | inference阶段配置 | `workflow` 包含 `inference` 时必填 |
+| `execution.eval` | object | 否 | eval阶段配置 | `workflow` 包含 `eval` 时必填 |
+| `execution.report` | object | 否 | report阶段配置 | `workflow` 包含 `report` 时必填 |
+| `execution.resources` | object | 否 | 执行资源定义 | 见下方 ResourceConfig；用于提供任务执行所需的共享资源包 |
 
 **阶段配置说明**：
 
 | 阶段 | 配置字段 | 说明 |
 |------|----------|------|
-| synthesis | `synthesis` | 评测集合成配置，包含type、count、model等 |
-| inference | `inference` | Agent推理执行配置，包含type、model、merge_eval等 |
-| eval | `eval` | 评测执行配置，包含model等 |
-| report | `report` | 报告生成配置，包含type、model等 |
+| synthesis | `execution.synthesis` | 评测集合成配置，延续原有设计，包含 `type`、`count`、`model` 等字段 |
+| inference | `execution.inference` | Agent推理执行配置，延续原有设计；其中 `models` 表示本阶段实际参与推理的实验对象模型ID列表 |
+| eval | `execution.eval` | 评测执行配置，延续原有设计，包含 `model` 等字段 |
+| report | `execution.report` | 报告生成配置，延续原有设计，包含 `type`、`model` 等字段 |
+
+**InferenceConfig 字段说明**：
+
+| 字段 | 类型 | 必填 | 说明 | 校验规则 |
+|------|------|------|------|----------|
+| `execution.inference.models` | array | 是 | inference阶段实际参与推理的模型ID列表 | 非空数组；元素必须存在于 `config.models[].id` |
+
+**SynthesisConfig / EvalConfig / ReportConfig 关键引用说明**：
+
+| 字段 | 说明 | 校验规则 |
+|------|------|----------|
+| `execution.synthesis.model` | synthesis阶段使用的模型ID | 必须存在于 `execution.models[].id` |
+| `execution.eval.model` | eval阶段使用的模型ID | 必须存在于 `execution.models[].id` |
+| `execution.report.model` | report阶段使用的模型ID | 必须存在于 `execution.models[].id` |
+
+**AgentConfig 字段说明**：
+
+| 字段 | 类型 | 必填 | 说明 | 校验规则 |
+|------|------|------|------|----------|
+| `id` | string | 是 | Agent唯一标识 | 非空，其他配置通过id引用 |
+| `type` | string | 是 | Agent类型 | 非空，如 `claude-code` |
+| `config` | object | 否 | Agent运行配置 | 动态结构，默认为空对象 |
+
+**SkillConfig 字段说明**：
+
+| 字段 | 类型 | 必填 | 说明 | 校验规则 |
+|------|------|------|------|----------|
+| `type` | string | 是 | Skill资源类型 | 当前固定为 `s3` |
+| `url` | string | 是 | Skill资源包URL | 有效URL格式 |
+
+**ResourceConfig 字段说明**：
+
+| 字段 | 类型 | 必填 | 说明 | 校验规则 |
+|------|------|------|------|----------|
+| `type` | string | 是 | 资源类型 | 当前固定为 `s3` |
+| `url` | string | 是 | 资源包URL | 有效URL格式 |
+
+**专项校验规则**：
+
+1. **单主维度约束**：同一次 `AgentEvalTask` 只能有一个维度是可扩展维度，另外两个维度必须固定为单个对象。该约束不通过配置结构显式表达，而由代码层校验实现。
+   - 若本次任务比较模型，则：
+     - `execution.inference.models.length >= 1`
+     - `config.agents.length = 1`
+     - `config.skills.length = 1`
+   - 若本次任务比较Agent，则：
+     - `config.models.length = 1`
+     - `config.agents.length >= 1`
+     - `config.skills.length = 1`
+   - 若本次任务比较Skill，则：
+     - `config.models.length = 1`
+     - `config.agents.length = 1`
+     - `config.skills.length >= 1`
+
+2. **实验对象引用完整性校验**：
+   - `execution.inference.models` 中的所有ID必须能在 `config.models[].id` 中找到。
+
+3. **执行模型引用完整性校验**：
+   - `execution.synthesis.model`、`execution.eval.model`、`execution.report.model` 中引用的模型ID必须能在 `execution.models[].id` 中找到。
+
+4. **阶段配置完整性校验**：
+   - `execution.workflow` 中出现的每个阶段都必须存在对应配置。
+   - 未在 `execution.workflow` 中声明的阶段配置不得出现。
+
+5. **阶段顺序校验**：
+   - 合法阶段顺序为：`synthesis -> inference -> eval -> report`。
+   - 允许取其中连续或跳过前置阶段的子序列，但不允许乱序，例如：
+     - 合法：`["inference", "eval", "report"]`
+     - 非法：`["eval", "inference"]`
 
 ---
 
