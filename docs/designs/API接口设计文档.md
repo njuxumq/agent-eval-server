@@ -932,8 +932,8 @@ POST /internal/subtasks/subtask-001/cancel
 
 - **调度服务侧**：
   - ConfigParserRegistry：按 `Task.type` 注册 ConfigParser（供 API 层校验）
-  - TaskSplitter：内部注册 SplitStrategy（拆分策略）
-  - DAGBuilder：内部注册 BuildStrategy（构建策略）
+  - TaskManager：内部注册 StageSplitStrategy（阶段拆分策略）
+  - StageScheduler：内部注册 SubTaskSplitStrategy（子任务拆分策略）
 - **执行服务侧**：SubTaskHandlerRegistry 按 `(type, sub_type)` 注册 Handler
 - **新增类型只需实现策略接口并注册，无需修改现有代码**
 
@@ -942,8 +942,8 @@ POST /internal/subtasks/subtask-001/cancel
 1. **定义任务类型枚举值**：在 `type` 字段的枚举列表中新增类型
 2. **定义配置结构**：创建对应的 Config 结构定义（如 `XXXEvalConfig`）
 3. **实现 ConfigParser**：解析和校验配置
-4. **实现 SplitStrategy**：定义拆分为子任务的逻辑
-5. **实现 BuildStrategy**：定义 DAG 依赖关系
+4. **实现 StageSplitStrategy**：定义阶段拆分逻辑
+5. **实现 SubTaskSplitStrategy**：定义子任务拆分逻辑
 6. **实现 SubTaskHandler**：各阶段的执行逻辑
 7. **注册到对应组件**：服务启动时调用 Register 方法
 
@@ -952,8 +952,8 @@ POST /internal/subtasks/subtask-001/cancel
 | 组件 | 注册方法 | 策略接口 |
 |------|---------|---------|
 | ConfigParserRegistry | `Register(taskType, parser)` | `ConfigParser` |
-| TaskSplitter | `RegisterStrategy(taskType, strategy)` | `SplitStrategy` |
-| DAGBuilder | `RegisterStrategy(taskType, strategy)` | `BuildStrategy` |
+| TaskManager | `RegisterStageStrategy(taskType, strategy)` | `StageSplitStrategy` |
+| StageScheduler | `RegisterSubTaskStrategy(key, strategy)` | `SubTaskSplitStrategy` |
 
 #### 执行服务组件
 
@@ -982,11 +982,11 @@ POST /internal/subtasks/subtask-001/cancel
 | 步骤 | 组件 | 实现 |
 |-----|------|------|
 | 1 | ConfigParser | `SafetyEvalConfigParser` |
-| 2 | SplitStrategy | `SafetyEvalSplitStrategy` |
-| 3 | BuildStrategy | `SafetyEvalBuildStrategy` |
+| 2 | StageSplitStrategy | `SafetyEvalStageStrategy` |
+| 3 | SubTaskSplitStrategy | `SafetyEvalXxxSplitStrategy`（各阶段） |
 | 4 | SubTaskHandler | `SafetyEvalXxxHandler`（各阶段） |
 
-**无需修改** TaskManager、SubTaskManager、DAGScheduler 等现有代码。
+**无需修改** TaskManager、StageScheduler、SubTaskManager 等现有代码。
 
 ---
 
@@ -1074,7 +1074,7 @@ POST /internal/subtasks/subtask-001/cancel
 | 10302 | executor_response_code_error | 响应码错误 | 执行服务返回非0响应码 |
 | 10303 | executor_not_alive_error | 执行服务失联 | 健康检查连续失败 |
 | 10304 | model_not_found | 模型配置不存在 | 引用的model_id在models列表中不存在 |
-| 10305 | dag_node_blocked_error | DAG节点阻塞 | 前置依赖节点未完成 |
+| 10305 | stage_blocked_error | 阶段阻塞 | 前序阶段未完成 |
 | 10306 | task_not_found_error | 任务不存在 | task_id不存在 |
 | 10307 | task_already_finished_error | 任务已完成 | 无法取消已完成的任务 |
 | 10308 | task_retry_count_over_limit_error | 重试次数超限 | 子任务重试次数超过最大限制 |
